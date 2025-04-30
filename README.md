@@ -2,8 +2,7 @@
 
 **PRS-CS**  from Ge et al. implementated using PyTorch. (compatible with GPU)
 
-**PRS-CS** is a Python based command line tool that infers posterior SNP effect sizes under continuous shrinkage (CS) priors
-using GWAS summary statistics and an external LD reference panel.
+The following documentation is from the original **PRS-CS**:
 
 - Details of the development and evaluation of PRS-CS are described in: \
   T Ge, CY Chen, Y Ni, YCA Feng, JW Smoller. Polygenic Prediction via Bayesian Regression and Continuous Shrinkage Priors. *Nature Communications*, 10:1776, 2019.
@@ -13,44 +12,6 @@ using GWAS summary statistics and an external LD reference panel.
 
 - A review of the methods and best practices for cross-ancestry polygenic prediction is available at: \
   L Kachuri, N Chatterjee, J Hirbo, DJ Schaid, I Martin, IJ Kullo, EE Kenny, B Pasaniuc, JS Witte, T Ge. Principles and methods for transferring polygenic risk scores across global populations. *Nature Reviews Genetics*, 25:8-25, 2024.
-
-
-## Version History
-
-**May 14, 2024**: Replaced some scipy functions with numpy due to changes in the latest scipy version.
-
-**Apr 9, 2024**: Allowed for the output of all posterior samples, which can be used to estimate the uncertainty of individualized PRS.
-
-🔴
-**Aug 10, 2023**: Added BETA/OR + SE as a new input format (see the format of GWAS summary statistics below), which is now the recommended input data. When using BETA/OR + P as the input, p-values smaller than 1e-323 are truncated, which may reduce the prediction accuracy for traits that have highly significant loci.
-
-**Aug 10, 2023**: Allowed for the output of variant-specific shrinkage estimates.
-
-**Nov 3, 2022**: Import random module from numpy instead of scipy.
-
-**Jun 4, 2021**: Expanded reference panels to five populations.
-
-**May 26, 2021**: Added suggestions for limiting the number of threads in scipy when running PRS-CS (see Computational Efficiency section below).
-
-**Apr 6, 2021**: Added projection of the LD matrix to its nearest non-negative definite matrix.
-
-**Mar 4, 2021**: LD reference panels constructed using the UK Biobank data are now available. 
-
-**Jan 4, 2021**: Improved the accuracy and robustness of random sampling from the generalized inverse Gaussian distribution. Prediction accuracy will probably slightly improve over previous versions.
-
-**Sept 10, 2020**: Fixed a bug in strand flip when there are non-ATGC alleles (e.g., indels) in the GWAS summary statistics. Previous versions erroneously remove variants that can be matched across GWAS summary statistics, the reference panel and the validation bim file via strand flip, which reduces the number of SNPs used in prediction and may slightly affect prediction accuracy. 
-
-**Apr 24, 2020**: Accounted for a rare ZeroDivisionError in MCMC sampling.
-
-**Apr 20, 2020**: Added non-ATGC allele check.
-
-**Apr 11, 2020**: Added strand flip check.
-
-**Mar 25, 2020**: Minor changes to make the software Python 2 and 3 compatible.
-
-**Oct 20, 2019**: Added `--seed`, which can be used to seed the random number generator using a non-negative integer.
-
-**Jun 6, 2019**: Fixed a bug in `--beta_std`. If you explicitly specified `--beta_std=False`, the output was actually standardized beta (in contrast to desired per-allele beta) and we recommend rerunning the analysis. If you left `--beta_std` as default or used `--beta_std=True`, the results were not affected.
 
 
 ## Getting Started
