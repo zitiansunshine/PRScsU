@@ -1,6 +1,6 @@
 # PRS-csU
 
-**PRS-csU** (PRScs on GPU), adopted from PRScs by Ge et al..
+**PRS-csU** (PRScs on GPU), adapted from PRScs by Ge et al.
 
 **PRS-csU** runs about 30–50% faster than the original CPU-based **PRS-cs**.
 
