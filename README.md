@@ -4,7 +4,7 @@
 
 **PRS-csU** runs about 30–50% faster than the original CPU-based **PRS-cs**.
 
-The following documentation is adapted from the original **PRS-CS** Github documentation:
+The following documentation is adapted from the original **PRS-cs** Github documentation:
 
 - Details of the development and evaluation of PRS-CS are described in: \
   T Ge, CY Chen, Y Ni, YCA Feng, JW Smoller. Polygenic Prediction via Bayesian Regression and Continuous Shrinkage Priors. *Nature Communications*, 10:1776, 2019.
