@@ -1,4 +1,6 @@
-# PRS-CS
+# PRS-csU
+
+PRS-cs from Ge et al. implementated using PyTorch.
 
 **PRS-CS** is a Python based command line tool that infers posterior SNP effect sizes under continuous shrinkage (CS) priors
 using GWAS summary statistics and an external LD reference panel.
