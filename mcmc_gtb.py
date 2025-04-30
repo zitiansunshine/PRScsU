@@ -6,41 +6,45 @@ Markov Chain Monte Carlo (MCMC) sampler for polygenic prediction with continuous
 """
 
 
-import numpy as np
-from scipy import linalg 
-from numpy import random
+import torch
 import gigrnd
 
 
 def mcmc(a, b, phi, sst_dict, n, ld_blk, blk_size, n_iter, n_burnin, thin, chrom, out_dir, beta_std, write_psi, write_pst, seed):
     print('... MCMC ...')
 
-    # seed
-    if seed != None:
-        random.seed(seed)
-
-    # derived stats
-    beta_mrg = np.array(sst_dict['BETA'], ndmin=2).T
-    maf = np.array(sst_dict['MAF'], ndmin=2).T
-    n_pst = int((n_iter-n_burnin)/thin)
+    # device and seeds for torch tensors
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"... Using device: {device} ...")
+    if device.type == 'cuda':
+        try:
+            gpu_name = torch.cuda.get_device_name(device)
+        except Exception:
+            gpu_name = 'Unknown CUDA device'
+        print(f"... CUDA device name: {gpu_name} ...")
+    if seed is not None:
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+    # derived stats to torch
     p = len(sst_dict['SNP'])
+    beta_mrg = torch.tensor(sst_dict['BETA'], dtype=torch.float32, device=device).reshape(p,1)
+    maf = torch.tensor(sst_dict['MAF'], dtype=torch.float32, device=device).reshape(p,1)
+    n_pst = (n_iter - n_burnin) // thin
+    # move LD blocks to torch
+    ld_blk = [torch.tensor(bl, dtype=torch.float32, device=device) for bl in ld_blk]
     n_blk = len(ld_blk)
-
-    # initialization
-    beta = np.zeros((p,1))
-    psi = np.ones((p,1))
+    # initialization with torch
+    beta = torch.zeros((p,1), device=device)
+    psi = torch.ones((p,1), device=device)
     sigma = 1.0
-    
-    if phi == None:
+    if phi is None:
         phi = 1.0; phi_updt = True
     else:
         phi_updt = False
-
     if write_pst == 'TRUE':
-        beta_pst = np.zeros((p,n_pst))
-
-    beta_est = np.zeros((p,1))
-    psi_est = np.zeros((p,1))
+        beta_pst = torch.zeros((p, n_pst), device=device)
+    beta_est = torch.zeros((p,1), device=device)
+    psi_est = torch.zeros((p,1), device=device)
     sigma_est = 0.0
     phi_est = 0.0
 
@@ -55,26 +59,37 @@ def mcmc(a, b, phi, sst_dict, n, ld_blk, blk_size, n_iter, n_burnin, thin, chrom
             if blk_size[kk] == 0:
                 continue
             else:
-                idx_blk = range(mm,mm+blk_size[kk])
-                dinvt = ld_blk[kk]+np.diag(1.0/psi[idx_blk].T[0])
-                dinvt_chol = linalg.cholesky(dinvt)
-                beta_tmp = linalg.solve_triangular(dinvt_chol, beta_mrg[idx_blk], trans='T') + np.sqrt(sigma/n)*random.randn(len(idx_blk),1)
-                beta[idx_blk] = linalg.solve_triangular(dinvt_chol, beta_tmp, trans='N')
-                quad += np.dot(np.dot(beta[idx_blk].T, dinvt), beta[idx_blk])
+                idx_blk = list(range(mm, mm+blk_size[kk]))
+                # posterior precision matrix & Cholesky
+                dinvt = ld_blk[kk] + torch.diag(1.0/psi[idx_blk].squeeze())
+                chol = torch.linalg.cholesky(dinvt, upper=True)
+                # solve R^T y = beta_mrg by transposing R (R is upper-triangular) and treating as lower-triangular
+                beta_tmp = torch.linalg.solve_triangular(chol.transpose(-2,-1), beta_mrg[idx_blk], upper=False, left=True)
+                # add Gaussian noise with std sqrt(sigma/n)
+                beta_tmp = beta_tmp + (sigma/n)**0.5 * torch.randn_like(beta_tmp)
+                # solve R x = beta_tmp
+                beta_blk = torch.linalg.solve_triangular(chol, beta_tmp, upper=True, left=True)
+                beta[idx_blk] = beta_blk
+                # accumulate quadratic form
+                quad += (beta_blk.T @ dinvt @ beta_blk).item()
                 mm += blk_size[kk]
 
-        err = max(n/2.0*(1.0-2.0*sum(beta*beta_mrg)+quad), n/2.0*sum(beta**2/psi))
-        sigma = 1.0/random.gamma((n+p)/2.0, 1.0/err)
-
-        delta = random.gamma(a+b, 1.0/(psi+phi))
-
-        for jj in range(p):
-            psi[jj] = gigrnd.gigrnd(a-0.5, 2.0*delta[jj], n*beta[jj]**2/sigma)
-        psi[psi>1] = 1.0
-
-        if phi_updt == True:
-            w = random.gamma(1.0, 1.0/(phi+1.0))
-            phi = random.gamma(p*b+0.5, 1.0/(sum(delta)+w))
+        # update sigma via GPU-accelerated Gamma sampler
+        term1 = n/2.0 * (1.0 - 2.0*torch.sum(beta*beta_mrg) + quad)
+        term2 = n/2.0 * torch.sum(beta**2/psi)
+        err = torch.max(term1, term2)
+        # correct rate=err for Gamma(shape=(n+p)/2, scale=1/err)
+        sigma = (1.0 / torch.distributions.Gamma(concentration=(n+p)/2.0, rate=err).sample()).item()
+        # update local shrinkage via vectorized GIG
+        delta = torch.distributions.Gamma(concentration=(a+b), rate=(psi+phi)).sample()
+        psi = gigrnd.vectorized_gigrnd(torch.tensor(a-0.5, device=device), 2.0*delta, (n*beta**2/sigma))
+        psi = torch.minimum(psi, torch.ones_like(psi))
+        # update global shrinkage if needed
+        if phi_updt:
+            # correct rate=phi+1.0 for Gamma(1, scale=1/(phi+1.0))
+            w = torch.distributions.Gamma(concentration=1.0, rate=(phi+1.0)).sample().item()
+            # correct rate=sum(delta)+w for Gamma(p*b+0.5, scale=1/(sum(delta)+w))
+            phi = torch.distributions.Gamma(concentration=(p*b+0.5), rate=(delta.sum().item()+w)).sample().item()
 
         # posterior
         if (itr>n_burnin) and (itr % thin == 0):
@@ -89,10 +104,10 @@ def mcmc(a, b, phi, sst_dict, n, ld_blk, blk_size, n_iter, n_burnin, thin, chrom
 
     # convert standardized beta to per-allele beta
     if beta_std == 'FALSE':
-        beta_est /= np.sqrt(2.0*maf*(1.0-maf))
+        beta_est /= torch.sqrt(2.0*maf*(1.0-maf))
 
         if write_pst == 'TRUE':
-            beta_pst /= np.sqrt(2.0*maf*(1.0-maf))
+            beta_pst /= torch.sqrt(2.0*maf*(1.0-maf))
 
 
     # write posterior effect sizes
