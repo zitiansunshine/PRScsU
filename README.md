@@ -1,8 +1,10 @@
 # PRS-csU
 
-**PRS-CS**  from Ge et al. implementated using PyTorch. (compatible with GPU)
+**PRS-csU** (PRScs on GPU), adopted from PRScs by Ge et al..
 
-The following documentation is from the original **PRS-CS**:
+**PRS-csU** runs about 30–50% faster than the original CPU-based **PRS-cs**.
+
+The following documentation is adapted from the original **PRS-CS** Github documentation:
 
 - Details of the development and evaluation of PRS-CS are described in: \
   T Ge, CY Chen, Y Ni, YCA Feng, JW Smoller. Polygenic Prediction via Bayesian Regression and Continuous Shrinkage Priors. *Nature Communications*, 10:1776, 2019.
@@ -18,7 +20,7 @@ The following documentation is from the original **PRS-CS**:
 
 - Clone this repository using the following git command:
    
-    `git clone https://github.com/getian107/PRScs.git`
+    `git clone https://github.com/zitiansunshine/PRScsU.git`
 
     Alternatively, download the source files from the github website (`https://github.com/getian107/PRScs`)
 
