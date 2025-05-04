@@ -61,7 +61,7 @@ def mcmc(a, b, phi, sst_dict, n, ld_blk, blk_size, n_iter, n_burnin, thin, chrom
             else:
                 idx_blk = list(range(mm, mm+blk_size[kk]))
                 # posterior precision matrix & Cholesky
-                dinvt = ld_blk[kk] + torch.diag(1.0/psi[idx_blk].squeeze())
+                dinvt = ld_blk[kk] + torch.diag(1.0/psi[idx_blk].flatten())
                 chol = torch.linalg.cholesky(dinvt, upper=True)
                 # solve R^T y = beta_mrg by transposing R (R is upper-triangular) and treating as lower-triangular
                 beta_tmp = torch.linalg.solve_triangular(chol.transpose(-2,-1), beta_mrg[idx_blk], upper=False, left=True)
