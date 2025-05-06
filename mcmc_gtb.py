@@ -71,7 +71,7 @@ def mcmc(a, b, phi, sst_dict, n, ld_blk, blk_size, n_iter, n_burnin, thin, chrom
                 beta_blk = torch.linalg.solve_triangular(chol, beta_tmp, upper=True, left=True)
                 beta[idx_blk] = beta_blk
                 # accumulate quadratic form
-                quad += (beta_blk.T @ dinvt @ beta_blk).item()
+                quad += torch.sum(beta_tmp**2).item()
                 mm += blk_size[kk]
 
         # update sigma via GPU-accelerated Gamma sampler
